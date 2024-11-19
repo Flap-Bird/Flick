@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{ videotitle }}</title>
+    <link rel="stylesheet" href="/css/ionicons.min.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/pure/2.0.6/pure-min.css"
+    />
+    <link rel="stylesheet"
+      href="/css/video-html.css">
+  </head>
+
+  <body>
+    <div class="navbar">
+      <div class="navbar-logo">
+        <a href="/">
+          <img
+            src="https://gitlab.com/mpdpa/icon/-/raw/main/IMG_0942.png"
+            alt="YouTube Icon"
+          />
+        </a>
+      </div>
+
+      <form class="navbar-search pure-form" action="/search" method="get">
+        <fieldset>
+          <input
+            type="search"
+            id="searchbox"
+            autocomplete="off"
+            autocorrect="on"
+            autocapitalize="none"
+            spellcheck="false"
+            name="q"
+            placeholder="検索"
+            title="検索"
+            value=""
+            class="ui-autocomplete-input"
+          />
+        </fieldset>
+      </form>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script>
+      $("#searchbox").autocomplete({
+        source: function (request, response) {
+          var url = "/suggest?keyword=" + encodeURIComponent(request.term);
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", url);
+
+          xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                var results = JSON.parse(xhr.responseText);
+                response(results.slice(0, 14));
+              } catch (error) {
+                console.error("Parsing error:", error);
+                response([]);
+              }
+            } else {
+              console.error("Request failed:", xhr.statusText);
+              response([]);
+            }
+          };
+
+          xhr.onerror = function () {
+            console.error("Network error");
+            response([]);
+          };
+
+          xhr.send();
+        },
+        delay: 300,
+        minLength: 1,
+        open: function (event, ui) {
+          var navbarHeight = $(".navbar").outerHeight(); // navbarの高さを取得
+          var navbarOffset = $(".navbar").offset().top; // navbarの上部位置を取得
+
+          $(".ui-autocomplete").css({
+            top: navbarOffset + navbarHeight + "px", // navbarの下に配置
+            left: $("#searchbox").offset().left + "px", // 検索ボックスの左に合わせる
+            width: $("#searchbox").outerWidth() + "px", // 検索ボックスの幅に合わせる
+          });
+        },
+      });
+    </script>
+
+    <div id="contents">
+      <div id="player-container">
+        <span class="video-player-area-a">
+          <video
+            playsinline=""
+            poster="https://img.youtube.com/vi/{{ g_videoid }}/0.jpg"
+            id="player"
+            controls=""
+          >
+            <source src="{{ videourls[0] }}" />
+          </video>
+        </span>
+        <h2 id="video-title">{{ videotitle }}</h2>
+        <img id="author-icon" src="{{authoricon}}" /><span id="channel-name"
+          >{{ author }}</span
+        >
+        <p>
+          投稿日: <span id="published-date"></span> ・再生回数:
+          <span class="view-count" id="view-count"></span> ・ 高評価数:
+          <span class="like-count" id="like-count"></span>
+        </p>
+
+        <style>
+          /* 概要欄のテキスト */
+          .text-container-gaiyou {
+            max-height: 96px; /* 4行分の高さ */
+            overflow: hidden;
+            position: relative;
+            font-size: 16px; /* 文字サイズを16pxに設定 */
+            line-height: 1.5; /* 行間 */
+          }
+
+          /* もっと見るボタン */
+          .more-button-gaiyou {
+            color: rgb(91, 91, 91);
+            cursor: pointer;
+            text-decoration: underline;
+            display: none; /* 初期状態では非表示 */
+          }
+        </style>
+
+        説明
+        <div class="text-container-gaiyou" id="textContainerGaiyou">
+          <p id="textContentGaiyou">
+            <span class="video-description" id="video-description"></span>
+          </p>
+        </div>
+        <span
+          class="more-button-gaiyou"
+          id="moreButtonGaiyou"
+          onclick="toggleTextGaiyou()"
+        >
+          もっと見る
+        </span>
+
+        <script>
+          function toggleTextGaiyou() {
+            const textContainer = document.getElementById(
+              "textContainerGaiyou"
+            );
+            const moreButton = document.getElementById("moreButtonGaiyou");
+
+            if (textContainer.style.maxHeight === "none") {
+              textContainer.style.maxHeight = "96px"; // 折りたたむ際の最大高さ
+              moreButton.textContent = "もっと見る";
+            } else {
+              textContainer.style.maxHeight = "none"; // 展開する際に制限を解除
+              moreButton.textContent = "折りたたむ";
+            }
+          }
+
+          function checkTextLengthGaiyou() {
+            const textContainer = document.getElementById(
+              "textContainerGaiyou"
+            );
+            const moreButton = document.getElementById("moreButtonGaiyou");
+
+            // 設定されている最大高さ（4行分の高さ）を取得
+            const maxHeight = parseFloat(
+              getComputedStyle(textContainer).maxHeight
+            );
+
+            // テキストが最大高さを超える場合、ボタンを表示
+            if (textContainer.scrollHeight > maxHeight) {
+              moreButton.style.display = "inline"; // ボタンを表示
+            } else {
+              moreButton.style.display = "none"; // ボタンを非表示
+            }
+          }
+
+          // テキストの変更を検知してボタンの表示を更新
+          document.addEventListener("DOMContentLoaded", function () {
+            const videoDescription =
+              document.getElementById("video-description");
+
+            // MutationObserverを使ってテキスト変更を監視
+            const observer = new MutationObserver(checkTextLengthGaiyou);
+            observer.observe(videoDescription, {
+              childList: true,
+              subtree: true,
+            });
+          });
+        </script>
+
+        <div id="comments"></div>
+
+        <script>
+          const videoId = "{{ g_videoid }}";
+          const proxyUrl = `https://script.google.com/macros/s/AKfycbytlpGuby3FkR-S6aOvGqkl-8o3V_lyb5u91VIqhPhhujGVyvqoRJ-fXHPmPOhUQgWI/exec?videoId=api/v1/videos/${videoId}`;
+
+          // 投稿日を日本語形式に変換
+          function formatDate(dateString) {
+            if (dateString.includes("months ago")) {
+              return dateString.replace("months ago", "ヶ月前");
+            } else if (dateString.includes("years ago")) {
+              return dateString.replace("years ago", "年前");
+            } else if (dateString.includes("minutes ago")) {
+              return dateString.replace("minutes ago", "分前");
+            } else if (dateString.includes("hours ago")) {
+              return dateString.replace("hours ago", "時間前");
+            } else if (dateString.includes("seconds ago")) {
+              return dateString.replace("seconds ago", "秒前");
+            } else if (dateString.includes("month ago")) {
+              return dateString.replace("month ago", "ヶ月前");
+            } else if (dateString.includes("year ago")) {
+              return dateString.replace("year ago", "年前");
+            } else if (dateString.includes("minute ago")) {
+              return dateString.replace("minute ago", "分前");
+            } else if (dateString.includes("hour ago")) {
+              return dateString.replace("hour ago", "時間前");
+            } else if (dateString.includes("second ago")) {
+              return dateString.replace("second ago", "秒前");
+            } else {
+              return dateString; // 変換対象外の文字列
+            }
+          }
+
+          // 再生回数や高評価数を表示フォーマットに変換
+          function formatCount(count) {
+            const number = Number(count);
+            if (number >= 1e8) {
+              return (number / 1e8).toFixed(1) + "億";
+            } else if (number >= 1e4) {
+              return (number / 1e4).toFixed(1) + "万";
+            }
+            return number; // 1万未満の場合はそのまま表示
+          }
+
+          async function fetchVideoDetails() {
+            try {
+              const response = await fetch(proxyUrl);
+              if (!response.ok) {
+                throw new Error(`APIエラー: ${response.status}`);
+              }
+              const videoData = await response.json();
+
+              // 動画情報をHTMLに表示
+              document.getElementById("video-title").innerText =
+                videoData.title;
+              const publishedDate = formatDate(videoData.publishedText); // 日付をフォーマット
+              document.getElementById("published-date").innerText =
+                publishedDate;
+              document.getElementById("view-count").innerText = formatCount(
+                videoData.viewCount
+              );
+              document.getElementById("video-description").innerText =
+                videoData.description;
+              document.getElementById("like-count").innerText = formatCount(
+                videoData.likeCount
+              );
+            } catch (error) {
+              console.error("動画情報の取得中にエラーが発生しました:", error);
+            }
+          }
+
+          fetchVideoDetails();
+
+          // コメント取得のためのXMLHttpRequest
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", "/comments?v=" + videoId);
+          xhr.onload = function () {
+            if (xhr.status != 500) {
+              document.getElementById("comments").innerHTML = xhr.responseText;
+            } else {
+              document.getElementById("comments").innerHTML =
+                "エラーが発生しました。再読み込みを試してください";
+            }
+          };
+          xhr.send();
+        </script>
+      </div>
+
+      <div class="sidebar">
+        <h3>関連動画</h3>
+        {% for re in res %}
+        <a href="/watch?v={{ re['id'] }}" class="thumbnail">
+          <img
+            src="https://img.youtube.com/vi/{{ re['id'] }}/0.jpg"
+            alt="関連動画"
+          />
+          <div class="thumbnail-text">
+            <p class="title Padding">{{ re["title"] }}</p>
+            <p class="related-videos-title" class="channel-name">{{ re["author"] }}</p>
+            <p class="video-info view-count">{{ re["viewCount"] }}</p>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <script>
+      function formatViews(views) {
+        const numberOfViews = Number(views);
+        let formattedViews;
+
+        if (numberOfViews >= 1e8) {
+          formattedViews = (numberOfViews / 1e8).toFixed(1) + "億";
+        } else if (numberOfViews >= 1e4) {
+          formattedViews = (numberOfViews / 1e4).toFixed(1) + "万";
+        } else {
+          formattedViews = numberOfViews + "";
+        }
+
+        return formattedViews;
+      }
+
+      const playerViewCountElement = document.querySelector(".view-count");
+      const playerCurrentViews =
+        playerViewCountElement.textContent.split(" ")[0];
+      playerViewCountElement.textContent = formatViews(playerCurrentViews);
+
+      document
+        .querySelectorAll(".video-info")
+        .forEach(function (viewCountElement) {
+          const currentViews = viewCountElement.textContent.split("回視聴")[0];
+          viewCountElement.textContent = formatViews(currentViews) + "回視聴";
+        });
+        document.addEventListener("DOMContentLoaded", function () {
+    // クラス属性 'related-videos-title' を持つ全ての要素を取得
+    document.querySelectorAll(".related-videos-title").forEach(function (titleElement) {
+      const maxLength = 16; // 最大文字数
+      const originalText = titleElement.textContent || ""; // 元のテキストを取得、nullの場合は空文字に
+
+      // テキストが最大文字数を超える場合のみ切り詰める
+      if (originalText.length > maxLength) {
+        titleElement.textContent = originalText.substring(0, maxLength) + "…";
+      }
+
+      // デバッグ: コンソールに各要素のテキストを出力
+      console.log("Element Text:", titleElement.textContent);
+    });
+  });
+    </script>
+  </body>
+</html>
+
